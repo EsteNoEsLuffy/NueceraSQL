@@ -196,12 +196,13 @@ class LotesForm(QWidget):
             self.registros = self.dao.listar()
         except pyodbc.Error as error:
             self._aviso("error", "No se pudo cargar", self._mensaje_error(error))
-            return
+            return False
         self.tabla.setRowCount(len(self.registros))
         for i, fila in enumerate(self.registros):
             for j in range(len(self.COLUMNAS)):
                 valor = fila[j]
                 self.tabla.setItem(i, j, QTableWidgetItem("" if valor is None else str(valor)))
+        return True
 
     def nuevo(self):
         listas = self._listas()

@@ -2,6 +2,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QWidget, QVBoxLayout
 from qfluentwidgets import (
     FluentWindow, NavigationItemPosition, FluentIcon as FIF, TitleLabel, BodyLabel,
+    InfoBar, InfoBarPosition,
 )
 from ui.forms.clientes_form import ClientesForm
 from ui.forms.productores_form import ProductoresForm
@@ -49,6 +50,30 @@ class VentanaPrincipal(FluentWindow):
         self.addSubInterface(self.pagina_ventas, FIF.DOCUMENT, "Ventas")
         self.addSubInterface(self.pagina_reportes, FIF.PRINT, "Reportes",
                              NavigationItemPosition.BOTTOM)
+        self.navigationInterface.addItem(
+            "actualizar_datos", FIF.SYNC, "Actualizar datos",
+            onClick=self.actualizar_datos, selectable=False,
+            position=NavigationItemPosition.TOP,
+            tooltip="Recargar las tablas desde el servidor",
+        )
+
+    def actualizar_datos(self):
+        paginas = (
+            self.pagina_productores,
+            self.pagina_lotes,
+            self.pagina_inventario,
+            self.pagina_clientes,
+            self.pagina_ventas,
+        )
+        resultados = [pagina.cargar() for pagina in paginas]
+        if all(resultados):
+            InfoBar.success(
+                title="Datos actualizados",
+                content="Las tablas se recargaron desde el servidor.",
+                parent=self,
+                position=InfoBarPosition.TOP,
+                duration=3000,
+            )
 
     def closeEvent(self, evento):
         # Al cerrar la ventana, se cierra también la conexión a SQL Server

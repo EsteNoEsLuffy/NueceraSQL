@@ -132,11 +132,12 @@ class ClientesForm(QWidget):
             filas = self.dao.listar()
         except pyodbc.Error as error:
             self._aviso("error", "No se pudo cargar", self._mensaje_error(error))
-            return
+            return False
         self.tabla.setRowCount(len(filas))
         for i, fila in enumerate(filas):
             for j, valor in enumerate(fila):
                 self.tabla.setItem(i, j, QTableWidgetItem("" if valor is None else str(valor)))
+        return True
 
     def nuevo(self):
         dialogo = DialogoCliente(self.window())
