@@ -32,8 +32,22 @@ def conectar(usuario, contrasena):
 
 def _mensaje_amigable(error):
     texto = str(error)
+    texto_minusculas = texto.lower()
     if "18456" in texto:
         return "Usuario o contraseña incorrectos."
-    if "08001" in texto or "timeout" in texto.lower():
-        return "No se pudo contactar al servidor. Revisa que SQL Server esté activo."
+    if any(
+        indicador in texto_minusculas
+        for indicador in ("11001", "getaddrinfo failed", "no such host is known")
+    ):
+        return (
+            "No se pudo resolver el nombre del servidor. Revisa la dirección en "
+            "config.ini y prueba con la IP local y el puerto de SQL Server "
+            "(por ejemplo, IP,1433)."
+        )
+    if "08001" in texto or "timeout" in texto_minusculas:
+        return (
+            "No se pudo contactar al servidor. Revisa que SQL Server esté activo, "
+            "que TCP/IP esté habilitado y que el puerto esté permitido en el "
+            f"firewall. Detalle técnico: {texto}"
+        )
     return f"Error de conexión: {texto}"
