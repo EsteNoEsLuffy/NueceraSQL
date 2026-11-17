@@ -1,7 +1,10 @@
 use nuecera
 go
 
-/* 1.- registra una venta de un lote -------------------------------- procedure 1*/
+/* 1.- registra una venta de un lote -------------------------------- procedure 1
+   La app llama a este procedimiento en lugar de hacer los inserts directos,
+   asi las validaciones y el descuento de inventario siempre se hacen igual.
+   Todo va dentro de una transaccion: si algo sale mal no se guarda nada. */
 create procedure sp_registrar_venta
 @id_cliente int,
 @id_lote int,
@@ -9,17 +12,18 @@ create procedure sp_registrar_venta
 @precio_kg decimal (10,2)
 as
 begin /*main*/
-set nocount on
+set nocount on /* que no regrese el conteo de filas, solo el select final */
 declare @existencia decimal (10,2)
 declare @id_venta int
 
 begin transaction venta
 begin try
+	/* busca cuantos kilos le quedan al lote (queda null si el lote no existe) */
 	select @existencia = existencia_kg
 	from inventario
 	where id_lote = @id_lote
 
-	/* cada raiserror manda directo al catch */
+	/* validaciones. Cada raiserror manda directo al catch */
 	if @cantidad_kg <= 0
 		raiserror ('la cantidad debe ser mayor a cero',16,1)
 
@@ -32,6 +36,8 @@ begin try
 	if @existencia < @cantidad_kg
 		raiserror ('no hay suficiente existencia en el lote',16,1)
 
+	/* primero el encabezado; el total queda en 0 y se calcula despues.
+	   scope_identity() trae el id que acaba de generar */
 	insert into ventas (id_cliente) values (@id_cliente)
 	set @id_venta = scope_identity()
 
@@ -39,14 +45,17 @@ begin try
 	insert into detalleventa (id_venta, id_lote, cantidad_kg, precio_kg, subtotal)
 	values (@id_venta, @id_lote, @cantidad_kg, @precio_kg, @cantidad_kg * @precio_kg)
 
+	/* ahora si, el total de la venta es la suma de sus renglones */
 	update ventas
 	set total = (select sum(subtotal) from detalleventa where id_venta = @id_venta)
 	where id_venta = @id_venta
 
 	commit tran venta
+	/* devuelve el numero de venta a la app */
 	select @id_venta as id_venta
 end try
 begin catch
+	/* deshace todo lo que se alcanzo a hacer */
 	rollback tran venta;
 	/* throw vuelve a mandar el error para que la app lo reciba y lo muestre */
 	throw
@@ -62,6 +71,7 @@ as
 begin
 set nocount on
 
+/* junta venta + cliente + detalle + producto en una sola tabla para el reporte */
 select v.id_venta, v.fecha, c.nombre as cliente, p.nombre as producto,
 d.id_lote, d.cantidad_kg, d.precio_kg, d.subtotal, v.total as total_venta, v.usuario_bd
 from ventas v
@@ -69,8 +79,9 @@ inner join clientes c on v.id_cliente = c.id_cliente
 inner join detalleventa d on v.id_venta = d.id_venta
 inner join lotes l on d.id_lote = l.id_lote
 inner join productos p on l.id_producto = p.id_producto
+/* fecha de ventas trae hora, asi que se compara contra "antes del dia siguiente"
+   para que las ventas del ultimo dia tambien entren */
 where v.fecha >= @fecha_inicio and v.fecha < dateadd(day, 1, @fecha_fin)
 order by v.fecha, v.id_venta
 end
 go
-

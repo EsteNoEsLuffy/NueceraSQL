@@ -16,12 +16,15 @@ from dao.lotes_dao import LotesDAO
 
 
 class DialogoLote(MessageBoxBase):
-    """Cuadro para capturar o editar un lote."""
+    """Cuadro para capturar o editar un lote. Recibe las listas de productores
+    y productos para llenar los desplegables."""
 
     def __init__(self, parent, productores, productos, datos=None):
         super().__init__(parent)
         self.titulo = SubtitleLabel("Editar lote" if datos else "Nuevo lote")
 
+        # en cada desplegable se ve el nombre pero se guarda el id (userData),
+        # que es lo que necesita la base de datos
         self.combo_productor = ComboBox()
         for id_, nombre in productores:
             self.combo_productor.addItem(nombre, userData=id_)
@@ -46,6 +49,8 @@ class DialogoLote(MessageBoxBase):
         self.bodega.setMaxLength(50)
 
         if datos:
+            # findData busca el desplegable por id; max(0, ...) evita el -1 si
+            # el productor/producto ya no estuviera en la lista
             self.combo_productor.setCurrentIndex(
                 max(0, self.combo_productor.findData(datos["id_productor"])))
             self.combo_producto.setCurrentIndex(
@@ -57,6 +62,7 @@ class DialogoLote(MessageBoxBase):
             self.bodega.setText(datos["bodega"])
 
         self.viewLayout.addWidget(self.titulo)
+        # cada campo con su etiqueta encima
         for etiqueta, campo in (
             ("Productor", self.combo_productor), ("Producto", self.combo_producto),
             ("Fecha de recepción", self.fecha), ("Peso (kg)", self.peso),
@@ -76,13 +82,16 @@ class DialogoLote(MessageBoxBase):
 
     @staticmethod
     def _decimal(texto):
-        """Convierte texto a Decimal; devuelve None si no es un número válido."""
+        """Convierte texto a Decimal; devuelve None si no es un número válido.
+        Acepta coma o punto como separador y redondea a 2 decimales (igual que
+        las columnas decimal de la base)."""
         try:
             return Decimal(texto.strip().replace(",", ".")).quantize(Decimal("0.01"))
         except Exception:
             return None
 
     def validate(self):
+        # se revisa campo por campo y se avisa del primero que este mal
         if self.combo_productor.currentData() is None:
             self._aviso("Falta productor", "Registra un productor primero.")
             return False
@@ -107,6 +116,7 @@ class DialogoLote(MessageBoxBase):
         return True
 
     def valores(self):
+        # el orden coincide con los parametros de LotesDAO.insertar / actualizar
         bodega = self.bodega.text().strip()
         return (
             self.combo_productor.currentData(),
@@ -126,7 +136,10 @@ class LotesForm(QWidget):
         super().__init__()
         self.setObjectName("lotes")
         self.dao = LotesDAO(conexion)
-        self.registros = []  # filas tal como vienen de la BD (incluyen los ids)
+        # guardo las filas completas porque traen id_productor e id_producto al
+        # final (indices 9 y 10), que no se muestran en la tabla pero sirven
+        # para editar
+        self.registros = []
 
         self.boton_nuevo = PrimaryPushButton("Nuevo")
         self.boton_editar = PushButton("Editar")
@@ -169,6 +182,7 @@ class LotesForm(QWidget):
 
     def _mensaje_error(self, error):
         texto = str(error)
+        # un lote con ventas no se puede borrar porque detalleventa lo referencia
         if "REFERENCE constraint" in texto:
             return "No se puede eliminar: este lote ya tiene ventas registradas."
         if "permission was denied" in texto.lower() or "(229)" in texto or "(230)" in texto:
@@ -176,6 +190,7 @@ class LotesForm(QWidget):
         return f"Error de base de datos: {texto}"
 
     def _registro_seleccionado(self):
+        # devuelve la fila completa (con ids) del lote elegido, o None con aviso
         fila = self.tabla.currentRow()
         if fila < 0 or fila >= len(self.registros):
             self._aviso("aviso", "Selecciona un lote", "Elige una fila de la tabla primero.")
@@ -199,6 +214,7 @@ class LotesForm(QWidget):
             return False
         self.tabla.setRowCount(len(self.registros))
         for i, fila in enumerate(self.registros):
+            # solo las primeras columnas; los 2 ids del final no se muestran
             for j in range(len(self.COLUMNAS)):
                 valor = fila[j]
                 self.tabla.setItem(i, j, QTableWidgetItem("" if valor is None else str(valor)))
@@ -226,6 +242,8 @@ class LotesForm(QWidget):
         listas = self._listas()
         if listas is None:
             return
+        # indices de la fila: 0 id, 3 fecha, 4 peso, 5 humedad, 6 precio,
+        # 8 bodega, 9 id_productor, 10 id_producto
         datos = {"id_productor": r[9], "id_producto": r[10], "fecha": str(r[3]),
                  "peso": r[4], "humedad": r[5], "precio": r[6], "bodega": r[8] or ""}
         dialogo = DialogoLote(self.window(), *listas, datos)

@@ -1,6 +1,5 @@
+# Consultas de la tabla productores (los que nos venden la nuez).
 class ProductoresDAO:
-    """Acceso a la tabla productores, con la conexión del usuario en sesión."""
-
     def __init__(self, conexion):
         self.conexion = conexion
 
@@ -32,5 +31,6 @@ class ProductoresDAO:
 
     def eliminar(self, id_productor):
         cursor = self.conexion.cursor()
+        # falla si el productor ya tiene lotes (llave foranea)
         cursor.execute("DELETE FROM productores WHERE id_productor = ?", id_productor)
         self.conexion.commit()

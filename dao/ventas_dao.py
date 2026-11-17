@@ -1,11 +1,14 @@
+# Aqui las ventas no se insertan con INSERT directo: se hacen con procedimientos
+# almacenados (sp_registrar_venta y sp_anular_venta) para que toda la logica
+# (revisar existencia, descontar inventario, calcular total) viva en la base
+# y salga bien sin importar desde donde se llame.
 class VentasDAO:
-    """Consulta de ventas, registro y anulación mediante procedimientos almacenados."""
-
     def __init__(self, conexion):
         self.conexion = conexion
 
     def listar(self):
         cursor = self.conexion.cursor()
+        # una venta con su detalle: ventas -> cliente, y detalleventa -> lote -> producto
         cursor.execute(
             "SELECT v.id_venta, v.fecha, c.nombre, pr.nombre, d.id_lote, "
             "       d.cantidad_kg, d.precio_kg, d.subtotal, v.total, v.usuario_bd "
@@ -24,7 +27,8 @@ class VentasDAO:
         return cursor.fetchall()
 
     def lotes_disponibles(self):
-        """Lotes con existencia, con su precio de lista para sugerirlo."""
+        # solo los lotes que todavia tienen nuez; el precio de lista del producto
+        # se usa como precio sugerido en el formulario
         cursor = self.conexion.cursor()
         cursor.execute(
             "SELECT l.id_lote, pr.nombre, i.existencia_kg, pr.precio_kg "
@@ -40,6 +44,7 @@ class VentasDAO:
         cursor = self.conexion.cursor()
         cursor.execute("{CALL sp_registrar_venta (?, ?, ?, ?)}",
                        id_cliente, id_lote, cantidad, precio)
+        # el procedimiento termina con un SELECT del id de la venta nueva
         id_venta = int(cursor.fetchone()[0])
         self.conexion.commit()
         return id_venta

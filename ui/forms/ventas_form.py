@@ -13,10 +13,13 @@ from qfluentwidgets import (
 from dao.ventas_dao import VentasDAO
 
 
+# Cuadro para registrar una venta nueva (las ventas no se editan, solo se anulan)
 class DialogoVenta(MessageBoxBase):
     def __init__(self, parent, clientes, lotes):
         super().__init__(parent)
-        self.lotes = {l[0]: l for l in lotes}  # id_lote -> fila
+        # diccionario id_lote -> fila, para encontrar rapido la existencia y el
+        # precio del lote que se elija en el desplegable
+        self.lotes = {l[0]: l for l in lotes}
 
         self.combo_cliente = ComboBox()
         for id_, nombre in clientes:
@@ -26,12 +29,14 @@ class DialogoVenta(MessageBoxBase):
         for id_lote, producto, existencia, _precio in lotes:
             self.combo_lote.addItem(f"Lote {id_lote} - {producto} ({existencia} kg)",
                                     userData=id_lote)
+        # al cambiar de lote, se cambia el precio sugerido
         self.combo_lote.currentIndexChanged.connect(self._sugerir_precio)
 
         self.cantidad = LineEdit()
         self.cantidad.setPlaceholderText("Cantidad en kg, ej. 100")
         self.precio = LineEdit()
         self.precio.setPlaceholderText("Precio por kg")
+        # pone el precio del primer lote desde que abre el cuadro
         self._sugerir_precio()
 
         self.viewLayout.addWidget(SubtitleLabel("Registrar venta"))
@@ -46,6 +51,8 @@ class DialogoVenta(MessageBoxBase):
         self.widget.setMinimumWidth(400)
 
     def _sugerir_precio(self):
+        # el precio de lista del producto (columna 3) se pone como sugerencia,
+        # pero se puede cambiar a mano si se vende a otro precio
         fila = self.lotes.get(self.combo_lote.currentData())
         if fila:
             self.precio.setText(str(fila[3]))
@@ -56,6 +63,7 @@ class DialogoVenta(MessageBoxBase):
 
     @staticmethod
     def _decimal(texto):
+        # acepta coma o punto; None si no es numero
         try:
             return Decimal(texto.strip().replace(",", ".")).quantize(Decimal("0.01"))
         except Exception:
@@ -73,6 +81,7 @@ class DialogoVenta(MessageBoxBase):
             self._aviso("Cantidad inválida", "La cantidad debe ser mayor a cero.")
             return False
         # Valida la existencia aquí, antes de llamar a SQL Server
+        # (el procedimiento tambien la revisa, esto solo evita el viaje al servidor)
         fila = self.lotes.get(self.combo_lote.currentData())
         if fila and cantidad > fila[2]:
             self._aviso("Existencia insuficiente",
@@ -85,6 +94,7 @@ class DialogoVenta(MessageBoxBase):
         return True
 
     def valores(self):
+        # mismo orden que los parametros de sp_registrar_venta
         return (self.combo_cliente.currentData(), self.combo_lote.currentData(),
                 self._decimal(self.cantidad.text()), self._decimal(self.precio.text()))
 
@@ -142,6 +152,7 @@ class VentasForm(QWidget):
         if "permission was denied" in texto.lower() or "(229)" in texto or "(230)" in texto:
             return "Tu usuario no tiene permiso para realizar esta acción."
         # Mensajes de los procedimientos (raiserror): se muestran tal cual
+        # (son los mismos textos que estan en 03 Procedure.sql y 06_anular_venta.sql)
         for mensaje in ("la cantidad debe ser mayor a cero", "el cliente no existe",
                         "el lote no existe en inventario",
                         "no hay suficiente existencia en el lote",
@@ -166,6 +177,7 @@ class VentasForm(QWidget):
         return True
 
     def registrar(self):
+        # primero se piden clientes y lotes para llenar los desplegables
         try:
             clientes = self.dao.clientes()
             lotes = self.dao.lotes_disponibles()
@@ -188,6 +200,7 @@ class VentasForm(QWidget):
         if fila < 0:
             self._aviso("aviso", "Selecciona una venta", "Elige una fila de la tabla primero.")
             return
+        # columna 0 = id de la venta, columna 8 = total de la venta
         id_venta = int(self.tabla.item(fila, 0).text())
         total = self.tabla.item(fila, 8).text()
         confirmar = MessageBox(

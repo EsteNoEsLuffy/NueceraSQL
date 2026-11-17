@@ -12,15 +12,18 @@ from dao.productores_dao import ProductoresDAO
 
 
 class DialogoProductor(MessageBoxBase):
-    """Cuadro para capturar o editar un productor."""
+    """Cuadro para capturar o editar un productor. Funciona igual que el de
+    clientes: con datos es edicion, sin datos es registro nuevo."""
 
     def __init__(self, parent, datos=None):
         super().__init__(parent)
         self.titulo = SubtitleLabel("Editar productor" if datos else "Nuevo productor")
 
+        # los maximos de caracteres son los mismos que los nvarchar de la tabla,
+        # asi la base no recibe texto que no le cabe
         self.nombre = LineEdit()
         self.nombre.setPlaceholderText("Nombre (obligatorio)")
-        self.nombre.setMaxLength(50)  # coincide con nvarchar(50) de la tabla
+        self.nombre.setMaxLength(50)
         self.telefono = LineEdit()
         self.telefono.setPlaceholderText("Teléfono")
         self.telefono.setMaxLength(20)
@@ -46,6 +49,7 @@ class DialogoProductor(MessageBoxBase):
         self.widget.setMinimumWidth(380)
 
     def validate(self):
+        # el cuadro no se cierra mientras esto devuelva False
         if not self.nombre.text().strip():
             InfoBar.warning("Falta el nombre", "El nombre es obligatorio.",
                             parent=self, position=InfoBarPosition.TOP, duration=3000)
@@ -53,6 +57,7 @@ class DialogoProductor(MessageBoxBase):
         return True
 
     def valores(self):
+        # lo opcional que se deje vacio se manda como NULL
         def o_nulo(texto):
             texto = texto.strip()
             return texto if texto else None
@@ -75,6 +80,7 @@ class ProductoresForm(QWidget):
         self.boton_editar.clicked.connect(self.editar)
         self.boton_eliminar.clicked.connect(self.eliminar)
 
+        # tabla solo de lectura, se selecciona la fila completa
         self.tabla = TableWidget()
         self.tabla.setColumnCount(len(self.COLUMNAS))
         self.tabla.setHorizontalHeaderLabels(self.COLUMNAS)
@@ -129,6 +135,7 @@ class ProductoresForm(QWidget):
 
     # ---------- operaciones ----------
     def cargar(self):
+        # recarga la tabla desde la base; False si algo fallo
         try:
             filas = self.dao.listar()
         except pyodbc.Error as error:
@@ -146,6 +153,7 @@ class ProductoresForm(QWidget):
             try:
                 self.dao.insertar(*dialogo.valores())
             except pyodbc.Error as error:
+                # el rollback deja la conexion lista para la siguiente operacion
                 self.dao.conexion.rollback()
                 self._aviso("error", "No se pudo guardar", self._mensaje_error(error))
                 return

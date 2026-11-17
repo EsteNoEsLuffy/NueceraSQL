@@ -1,6 +1,9 @@
 use nuecera
 go
 
+/* anula una venta: regresa los kilos al inventario y borra la venta.
+   Queda registro en la bitacora de que se anulo. Igual que registrar,
+   va en transaccion para que no quede a medias. */
 create procedure sp_anular_venta
 @id_venta int
 as
@@ -12,6 +15,7 @@ begin try
 	if not exists (select 1 from ventas where id_venta = @id_venta)
 		raiserror ('la venta no existe',16,1)
 
+	/* guardo el total antes de borrar para poder ponerlo en la bitacora */
 	declare @total decimal(12,2)
 	select @total = total from ventas where id_venta = @id_venta
 
@@ -22,6 +26,7 @@ begin try
 	inner join detalleventa d on inv.id_lote = d.id_lote
 	where d.id_venta = @id_venta
 
+	/* primero el detalle y luego la venta, porque detalleventa depende de ventas */
 	delete from detalleventa where id_venta = @id_venta
 	delete from ventas where id_venta = @id_venta
 

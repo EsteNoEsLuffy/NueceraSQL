@@ -1,5 +1,7 @@
+/* datos de prueba para poder probar la app sin capturar todo a mano */
 use nuecera
 
+/* no se pone el id porque es identity, SQL Server lo asigna solo */
 insert into productores values ('juan perez ramirez','6141234567','huerta la esperanza','delicias, chihuahua')
 insert into productores values ('maria lopez soto','6269876543','huerta los alamos','camargo, chihuahua')
 insert into productores values ('roberto garcia mena','6391112233','huerta el pecanal','jimenez, chihuahua')
@@ -8,6 +10,7 @@ insert into clientes values ('dulces y botanas del norte','6144445566','compras@
 ('abarrotes hernandez','6147778899','contacto@abarroteshdz.com','calle 20 #305'),
 ('exportadora pecan mx','6141230000','ventas@pecanmx.com','parque industrial')
 
+/* productos con su precio de lista por kilo: 1 = mitades, 2 = entera, 3 = con cascara */
 insert into productos values ('nuez pecanera en mitades',320),
 ('nuez pecanera entera',280),
 ('nuez pecanera con cascara',150)
@@ -19,11 +22,13 @@ insert into lotes values (1,3,'2026-10-05',1200,4.5,110),
 (1,1,'2026-10-28',650,4.2,235)
 
 /* inventario: lote, existencia, bodega */
+/* la existencia inicial es igual al peso del lote porque todavia no se vende nada */
 insert into inventario values (1,1200,'bodega a'),
 (2,800,'bodega a'),
 (3,500,'bodega b'),
 (4,650,'bodega b')
 
+/* para revisar que se cargo todo */
 select * from productores
 select * from lotes
 select * from inventario

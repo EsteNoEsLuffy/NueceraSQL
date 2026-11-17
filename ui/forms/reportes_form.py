@@ -17,6 +17,7 @@ class ReportesForm(QWidget):
         self.setObjectName("reportes")
         self.conexion = conexion
 
+        # por defecto propone del 1 de enero de este año hasta hoy
         hoy = QDate.currentDate()
         self.fecha_inicio = LineEdit()
         self.fecha_inicio.setText(QDate(hoy.year(), 1, 1).toString("yyyy-MM-dd"))
@@ -30,6 +31,8 @@ class ReportesForm(QWidget):
         self.boton_generar = PrimaryPushButton("Generar PDF")
         self.boton_generar.clicked.connect(self.generar)
 
+        # cada fecha lleva su etiqueta arriba, por eso una columna por campo
+        # y todas las columnas juntas en una fila
         fechas = QHBoxLayout()
         for etiqueta, campo in (("Desde", self.fecha_inicio), ("Hasta", self.fecha_fin)):
             columna = QVBoxLayout()
@@ -48,6 +51,7 @@ class ReportesForm(QWidget):
         layout.addStretch()
 
     def _aviso(self, tipo, titulo, mensaje):
+        # un solo metodo para los 3 tipos de barra (verde, roja, amarilla)
         funcion = {"ok": InfoBar.success, "error": InfoBar.error,
                    "aviso": InfoBar.warning}[tipo]
         funcion(title=titulo, content=mensaje, parent=self,
@@ -55,6 +59,7 @@ class ReportesForm(QWidget):
 
     @staticmethod
     def _fecha(texto):
+        # date.fromisoformat ya revisa que la fecha exista (no deja 2026-02-31)
         try:
             return date.fromisoformat(texto.strip())
         except ValueError:
@@ -74,15 +79,18 @@ class ReportesForm(QWidget):
             ruta = generar_pdf(self.conexion, inicio, fin)
         except pyodbc.Error as error:
             texto = str(error)
+            # 229 = SQL Server negó el permiso (usuario sin execute en el procedimiento)
             if "permission was denied" in texto.lower() or "(229)" in texto:
                 texto = "Tu usuario no tiene permiso para generar este reporte."
             self._aviso("error", "No se pudo generar", texto)
             return
         except PermissionError:
+            # pasa en Windows cuando el mismo PDF esta abierto en el lector
             self._aviso("error", "No se pudo guardar",
                         "Cierra el PDF si lo tienes abierto e inténtalo de nuevo.")
             return
 
+        # generar_pdf regresa None cuando el rango no tiene ventas
         if ruta is None:
             self._aviso("aviso", "Sin ventas", "No hay ventas en ese rango de fechas.")
             return

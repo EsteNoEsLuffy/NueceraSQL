@@ -13,7 +13,8 @@ from dao.clientes_dao import ClientesDAO
 
 
 class DialogoCliente(MessageBoxBase):
-    """Cuadro para capturar o editar un cliente."""
+    """Cuadro para capturar o editar un cliente. Si recibe datos es una edicion,
+    si no, es un cliente nuevo."""
 
     def __init__(self, parent, datos=None):
         super().__init__(parent)
@@ -28,6 +29,7 @@ class DialogoCliente(MessageBoxBase):
         self.direccion = LineEdit()
         self.direccion.setPlaceholderText("Dirección")
 
+        # al editar, se rellenan los campos con lo que ya tenia el cliente
         if datos:
             self.nombre.setText(datos["nombre"])
             self.telefono.setText(datos["telefono"])
@@ -74,6 +76,7 @@ class ClientesForm(QWidget):
         self.boton_editar.clicked.connect(self.editar)
         self.boton_eliminar.clicked.connect(self.eliminar)
 
+        # tabla solo para ver: se elige una fila completa y se usan los botones
         self.tabla = TableWidget()
         self.tabla.setColumnCount(len(self.COLUMNAS))
         self.tabla.setHorizontalHeaderLabels(self.COLUMNAS)
@@ -81,6 +84,7 @@ class ClientesForm(QWidget):
         self.tabla.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.tabla.setSelectionMode(QAbstractItemView.SingleSelection)
         self.tabla.verticalHeader().hide()
+        # las columnas se reparten el ancho, menos el ID que solo ocupa lo que necesita
         self.tabla.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.tabla.setColumnWidth(0, 60)
         self.tabla.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)
@@ -108,14 +112,17 @@ class ClientesForm(QWidget):
                 position=InfoBarPosition.TOP, duration=4000)
 
     def _mensaje_error(self, error):
+        # traduce los errores de SQL Server a algo que entienda el usuario
         texto = str(error)
         if "permission was denied" in texto.lower() or "229" in texto or "230" in texto:
             return "Tu usuario no tiene permiso para realizar esta acción."
+        # 547 = choca con una llave foranea (el cliente ya tiene ventas)
         if "REFERENCE constraint" in texto or "547" in texto:
             return "No se puede eliminar: este cliente tiene ventas registradas."
         return f"Error de base de datos: {texto}"
 
     def _fila_seleccionada(self):
+        # regresa el numero de fila elegida, o None (con aviso) si no hay ninguna
         fila = self.tabla.currentRow()
         if fila < 0:
             self._aviso("aviso", "Selecciona un cliente", "Elige una fila de la tabla primero.")
@@ -123,11 +130,13 @@ class ClientesForm(QWidget):
         return fila
 
     def _texto(self, fila, columna):
+        # una celda vacia puede no tener item, por eso se revisa
         item = self.tabla.item(fila, columna)
         return item.text() if item else ""
 
     # ---------- operaciones ----------
     def cargar(self):
+        # vuelve a leer todo de la base; regresa False si fallo
         try:
             filas = self.dao.listar()
         except pyodbc.Error as error:
@@ -136,15 +145,18 @@ class ClientesForm(QWidget):
         self.tabla.setRowCount(len(filas))
         for i, fila in enumerate(filas):
             for j, valor in enumerate(fila):
+                # los NULL se muestran como celda vacia
                 self.tabla.setItem(i, j, QTableWidgetItem("" if valor is None else str(valor)))
         return True
 
     def nuevo(self):
         dialogo = DialogoCliente(self.window())
+        # exec() es True solo si el usuario dio Guardar y paso la validacion
         if dialogo.exec():
             try:
                 self.dao.insertar(*dialogo.valores())
             except pyodbc.Error as error:
+                # rollback para dejar limpia la conexion despues del error
                 self.dao.conexion.rollback()
                 self._aviso("error", "No se pudo guardar", self._mensaje_error(error))
                 return
@@ -155,6 +167,7 @@ class ClientesForm(QWidget):
         fila = self._fila_seleccionada()
         if fila is None:
             return
+        # los datos se sacan de la tabla en pantalla, sin volver a consultar la base
         id_cliente = int(self._texto(fila, 0))
         datos = {"nombre": self._texto(fila, 1), "telefono": self._texto(fila, 2),
                  "correo": self._texto(fila, 3), "direccion": self._texto(fila, 4)}
@@ -175,6 +188,7 @@ class ClientesForm(QWidget):
             return
         id_cliente = int(self._texto(fila, 0))
         nombre = self._texto(fila, 1)
+        # pide confirmacion porque borrar no se puede deshacer
         confirmar = MessageBox("Eliminar cliente",
                                f"¿Seguro que quieres eliminar a «{nombre}»?", self.window())
         if confirmar.exec():

@@ -9,13 +9,14 @@ from db.connection import conectar, ErrorConexion
 
 
 class VentanaLogin(QWidget):
-    # Señal que se emite cuando el login es correcto.
-    # Lleva la conexión y el nombre de usuario.
+    # Esta senal avisa a main.py que el login salio bien. Manda la conexion
+    # ya abierta y el nombre de usuario para que la ventana principal los use.
     acceso_concedido = Signal(object, str)
 
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Nuecera - Iniciar sesión")
+        # tamaño fijo para que no la estiren y se desacomode
         self.setFixedSize(380, 340)
 
         titulo = TitleLabel("Nuecera")
@@ -27,6 +28,7 @@ class VentanaLogin(QWidget):
         self.campo_usuario.setPlaceholderText("Usuario")
         self.campo_usuario.setClearButtonEnabled(True)
 
+        # este campo oculta lo que se escribe
         self.campo_contrasena = PasswordLineEdit()
         self.campo_contrasena.setPlaceholderText("Contraseña")
 
@@ -35,6 +37,7 @@ class VentanaLogin(QWidget):
         # Enter en el campo de contraseña también intenta entrar
         self.campo_contrasena.returnPressed.connect(self.intentar_login)
 
+        # todo va uno debajo del otro (layout vertical)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(40, 30, 40, 30)
         layout.setSpacing(14)
@@ -48,12 +51,15 @@ class VentanaLogin(QWidget):
 
     def intentar_login(self):
         usuario = self.campo_usuario.text().strip()
+        # la contraseña no se limpia con strip por si lleva espacios a propósito
         contrasena = self.campo_contrasena.text()
 
         if not usuario or not contrasena:
             self._aviso_error("Faltan datos", "Escribe usuario y contraseña.")
             return
 
+        # no hay tabla de usuarios en la app: si SQL Server acepta el usuario
+        # y la contraseña, la conexion se abre y listo
         try:
             conexion = conectar(usuario, contrasena)
         except ErrorConexion as error:
@@ -63,6 +69,7 @@ class VentanaLogin(QWidget):
         self.acceso_concedido.emit(conexion, usuario)
 
     def _aviso_error(self, titulo, mensaje):
+        # barrita roja que sale arriba y desaparece sola a los 4 segundos
         InfoBar.error(
             title=titulo,
             content=mensaje,

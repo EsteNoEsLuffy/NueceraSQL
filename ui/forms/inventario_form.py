@@ -11,13 +11,14 @@ from qfluentwidgets import (
 from dao.inventario_dao import InventarioDAO
 
 
+# Cuadro chiquito para cambiar la bodega de un lote
 class DialogoBodega(MessageBoxBase):
     def __init__(self, parent, id_lote, bodega_actual):
         super().__init__(parent)
         self.viewLayout.addWidget(SubtitleLabel(f"Bodega del lote {id_lote}"))
         self.bodega = LineEdit()
         self.bodega.setPlaceholderText("Bodega")
-        self.bodega.setMaxLength(50)
+        self.bodega.setMaxLength(50)  # igual que nvarchar(50) en la tabla
         self.bodega.setText(bodega_actual)
         self.viewLayout.addWidget(BodyLabel("Bodega"))
         self.viewLayout.addWidget(self.bodega)
@@ -26,6 +27,7 @@ class DialogoBodega(MessageBoxBase):
         self.widget.setMinimumWidth(340)
 
     def valor(self):
+        # si lo dejan vacio se guarda NULL en lugar de un texto vacio
         texto = self.bodega.text().strip()
         return texto if texto else None
 
@@ -43,6 +45,8 @@ class InventarioForm(QWidget):
         self.boton_bodega.clicked.connect(self.editar_bodega)
         self.boton_actualizar.clicked.connect(self.cargar)
 
+        # tabla de solo lectura: no se edita escribiendo en las celdas,
+        # se selecciona una fila completa y se usa el boton
         self.tabla = TableWidget()
         self.tabla.setColumnCount(len(self.COLUMNAS))
         self.tabla.setHorizontalHeaderLabels(self.COLUMNAS)
@@ -74,11 +78,13 @@ class InventarioForm(QWidget):
 
     def _mensaje_error(self, error):
         texto = str(error)
+        # 229 y 230 son los errores de "permiso denegado" de SQL Server
         if "permission was denied" in texto.lower() or "(229)" in texto or "(230)" in texto:
             return "Tu usuario no tiene permiso para realizar esta acción."
         return f"Error de base de datos: {texto}"
 
     def cargar(self):
+        # regresa True/False para que "Actualizar datos" sepa si todo salio bien
         try:
             filas = self.dao.listar()
         except pyodbc.Error as error:
@@ -87,6 +93,7 @@ class InventarioForm(QWidget):
         self.tabla.setRowCount(len(filas))
         for i, fila in enumerate(filas):
             for j, valor in enumerate(fila):
+                # los NULL de la base se muestran como celda vacia
                 self.tabla.setItem(i, j, QTableWidgetItem("" if valor is None else str(valor)))
         return True
 
@@ -98,13 +105,14 @@ class InventarioForm(QWidget):
         id_lote = int(self.tabla.item(fila, 0).text())
         actual = self.tabla.item(fila, 4).text() if self.tabla.item(fila, 4) else ""
         dialogo = DialogoBodega(self.window(), id_lote, actual)
+        # exec() devuelve True si el usuario le dio Guardar
         if dialogo.exec():
             try:
                 self.dao.cambiar_bodega(id_lote, dialogo.valor())
             except pyodbc.Error as error:
+                # deshace lo pendiente para que la conexion no quede en mal estado
                 self.dao.conexion.rollback()
                 self._aviso("error", "No se pudo actualizar", self._mensaje_error(error))
                 return
             self.cargar()
             self._aviso("ok", "Bodega actualizada", "El cambio se guardó.")
-            
