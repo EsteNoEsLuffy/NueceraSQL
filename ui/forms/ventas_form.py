@@ -11,6 +11,7 @@ from qfluentwidgets import (
 )
 
 from dao.ventas_dao import VentasDAO
+from ui.buscador import BuscadorTabla
 
 
 # Cuadro para registrar una venta nueva (las ventas no se editan, solo se anulan)
@@ -137,6 +138,7 @@ class VentasForm(QWidget):
         layout.addWidget(TitleLabel("Ventas"))
         layout.addLayout(botones)
         layout.addWidget(self.tabla)
+        self.busqueda = BuscadorTabla(self, self.tabla, layout)
 
         self.cargar()
 
@@ -174,6 +176,7 @@ class VentasForm(QWidget):
         for i, fila in enumerate(filas):
             for j, valor in enumerate(fila):
                 self.tabla.setItem(i, j, QTableWidgetItem("" if valor is None else str(valor)))
+        self.busqueda.aplicar()
         return True
 
     def registrar(self):

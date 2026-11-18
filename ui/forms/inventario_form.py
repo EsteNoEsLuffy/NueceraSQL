@@ -9,6 +9,7 @@ from qfluentwidgets import (
 )
 
 from dao.inventario_dao import InventarioDAO
+from ui.buscador import BuscadorTabla
 
 
 # Cuadro chiquito para cambiar la bodega de un lote
@@ -67,6 +68,7 @@ class InventarioForm(QWidget):
         layout.addWidget(TitleLabel("Inventario"))
         layout.addLayout(botones)
         layout.addWidget(self.tabla)
+        self.busqueda = BuscadorTabla(self, self.tabla, layout)
 
         self.cargar()
 
@@ -95,6 +97,7 @@ class InventarioForm(QWidget):
             for j, valor in enumerate(fila):
                 # los NULL de la base se muestran como celda vacia
                 self.tabla.setItem(i, j, QTableWidgetItem("" if valor is None else str(valor)))
+        self.busqueda.aplicar()
         return True
 
     def editar_bodega(self):

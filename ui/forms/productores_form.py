@@ -9,6 +9,7 @@ from qfluentwidgets import (
 )
 
 from dao.productores_dao import ProductoresDAO
+from ui.buscador import BuscadorTabla
 
 
 class DialogoProductor(MessageBoxBase):
@@ -103,6 +104,7 @@ class ProductoresForm(QWidget):
         layout.addWidget(TitleLabel("Productores"))
         layout.addLayout(botones)
         layout.addWidget(self.tabla)
+        self.busqueda = BuscadorTabla(self, self.tabla, layout)
 
         self.cargar()
 
@@ -145,6 +147,7 @@ class ProductoresForm(QWidget):
         for i, fila in enumerate(filas):
             for j, valor in enumerate(fila):
                 self.tabla.setItem(i, j, QTableWidgetItem("" if valor is None else str(valor)))
+        self.busqueda.aplicar()
         return True
 
     def nuevo(self):

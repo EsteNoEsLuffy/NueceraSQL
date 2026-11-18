@@ -10,6 +10,7 @@ from qfluentwidgets import (
 )
 
 from dao.clientes_dao import ClientesDAO
+from ui.buscador import BuscadorTabla
 
 
 class DialogoCliente(MessageBoxBase):
@@ -101,6 +102,7 @@ class ClientesForm(QWidget):
         layout.addWidget(TitleLabel("Clientes"))
         layout.addLayout(botones)
         layout.addWidget(self.tabla)
+        self.busqueda = BuscadorTabla(self, self.tabla, layout)
 
         self.cargar()
 
@@ -147,6 +149,7 @@ class ClientesForm(QWidget):
             for j, valor in enumerate(fila):
                 # los NULL se muestran como celda vacia
                 self.tabla.setItem(i, j, QTableWidgetItem("" if valor is None else str(valor)))
+        self.busqueda.aplicar()
         return True
 
     def nuevo(self):
