@@ -79,7 +79,7 @@ subtotal decimal (12,2)   /* cantidad_kg * precio_kg */
 )
 
 /* historial de cambios importantes (modificar o borrar lotes, anular ventas).
-   Nadie la llena a mano: lo hacen los triggers y el procedimiento de anular */
+   Nadie la puede llena a mano (usuarios): lo hacen los triggers y el procedimiento almacenado de anular */
 create table bitacora (
 id_bitacora int primary key identity (1,1),
 tabla nvarchar (50),     /* en que tabla paso */

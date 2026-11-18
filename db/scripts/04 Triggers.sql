@@ -41,3 +41,19 @@ from deleted d
 where not exists (select * from inserted)
 end
 go
+
+/* 3.- cuando se registra una venta, deja un renglon en la bitacora por cada
+   renglon del detalle. Se pone en detalleventa y no en ventas porque el total
+   de ventas se calcula hasta el final (al insertar vale 0), y aqui ya vienen
+   lote, kilos y subtotal. id_registro es el id de la venta. */
+create or alter trigger trg_bitacora_ventas
+on detalleventa
+after insert
+as
+begin
+insert into bitacora (tabla, operacion, id_registro, detalle)
+select 'ventas', 'insert', i.id_venta,
+concat('lote ', i.id_lote, ', ', i.cantidad_kg, ' kg a ', i.precio_kg, '/kg, subtotal ', i.subtotal)
+from inserted i
+end
+go
