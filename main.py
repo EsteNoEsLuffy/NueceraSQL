@@ -3,6 +3,7 @@ import sys
 from PySide6.QtWidgets import QApplication
 from qfluentwidgets import setTheme, Theme
 
+from db.migracion import preparar_bitacora
 from ui.login import VentanaLogin
 from ui.main_window import VentanaPrincipal
 
@@ -19,6 +20,10 @@ def main():
     ventanas = {}
 
     def al_entrar(conexion, usuario):
+        # deja listos los triggers de la bitacora (solo si el usuario es admin)
+        error = preparar_bitacora(conexion)
+        if error:
+            print("No se pudo preparar la bitacora:", error)
         ventanas["principal"] = VentanaPrincipal(conexion, usuario)
         ventanas["principal"].show()
         login.close()
